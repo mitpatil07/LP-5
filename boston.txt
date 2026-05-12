@@ -1,0 +1,62 @@
+import numpy as np
+import pandas as pd
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+
+import tensorflow as tf
+from tensorflow import keras
+from tensorflow.keras import layers
+
+
+from sklearn.datasets import fetch_openml
+
+boston = fetch_openml(name='boston', version=1, as_frame=True)
+X = boston.data
+y = boston.target.astype(float)
+
+
+# Train-test split
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y, test_size=0.2, random_state=42
+)
+
+# Feature scaling
+scaler = StandardScaler()
+X_train = scaler.fit_transform(X_train)
+X_test = scaler.transform(X_test)
+
+model = keras.Sequential([
+    layers.Dense(64, activation='relu', input_shape=(X_train.shape[1],)),
+    layers.Dense(32, activation='relu'),
+    layers.Dense(1)  # Output layer (regression)
+])
+
+model.compile(
+    optimizer='adam',
+    loss='mse',   # Mean Squared Error
+    metrics=['mae']
+)
+
+history = model.fit(
+    X_train, y_train,
+    epochs=100,
+    batch_size=16,
+    validation_split=0.2,
+    verbose=1
+)
+
+loss, mae = model.evaluate(X_test, y_test)
+print("Test MAE:", mae)
+
+# Move predictions before mse and r2 calculations
+predictions = model.predict(X_test)
+
+from sklearn.metrics import mean_squared_error, r2_score
+mse=mean_squared_error(y_test, predictions)
+r2=r2_score(y_test, predictions)
+print("Mean Squared Error:", mse)
+print("R-squared:", r2)
+
+
+for i in range(5):
+    print(f"Predicted: {predictions[i][0]:.2f}, Actual: {y_test.iloc[i]:.2f}")

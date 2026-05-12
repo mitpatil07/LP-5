@@ -1,75 +1,66 @@
 #include <iostream>
+#include <vector>
 #include <omp.h>
+#include <climits>
+
 using namespace std;
 
-int main()
-{
-
-    int a[] = {1, 2, 3, 4, 5};
-
-    int n = 5;
-
+void perform_reduction(vector<int>& arr, int n) {
     int sum = 0;
-    int min = a[0];
-    int max = a[0];
+    int min_val = INT_MAX;
+    int max_val = INT_MIN;
 
-#pragma omp parallel for reduction(+ : sum)
-    for (int i = 0; i < n; i++)
-    {
-        sum += a[i];
+    // Parallel reduction for Sum
+    #pragma omp parallel for reduction(+ : sum)
+    for (int i = 0; i < n; i++) {
+        sum += arr[i];
     }
 
-#pragma omp parallel for reduction(min : min)
-    for (int i = 0; i < n; i++)
-    {
-        if (a[i] < min)
-            min = a[i];
+    // Parallel reduction for Minimum
+    #pragma omp parallel for reduction(min : min_val)
+    for (int i = 0; i < n; i++) {
+        if (arr[i] < min_val) min_val = arr[i];
     }
 
-#pragma omp parallel for reduction(max : max)
-    for (int i = 0; i < n; i++)
-    {
-        if (a[i] > max)
-            max = a[i];
+    // Parallel reduction for Maximum
+    #pragma omp parallel for reduction(max : max_val)
+    for (int i = 0; i < n; i++) {
+        if (arr[i] > max_val) max_val = arr[i];
     }
 
-    double avg = (double)sum / n;
+    double average = (double)sum / n;
 
-    cout << "Sum = " << sum << endl;
-    cout << "Min = " << min << endl;
-    cout << "Max = " << max << endl;
-    cout << "Average = " << avg << endl;
+    cout << "Sum: " << sum << endl;
+    cout << "Min: " << min_val << endl;
+    cout << "Max: " << max_val << endl;
+    cout << "Average: " << average << endl;
+}
+
+int main() {
+    int n;
+    cout << "--- Parallel Reduction ---\n";
+    cout << "Enter number of elements: ";
+    cin >> n;
+
+    vector<int> arr(n);
+    cout << "Enter " << n << " elements:\n";
+    for (int i = 0; i < n; i++) {
+        cin >> arr[i];
+    }
+
+    perform_reduction(arr, n);
 
     return 0;
 }
 
-
 /*
-
 ==================================================
-            COMPILATION COMMAND
+            COMPILATION & RUN
 ==================================================
+Compilation:
+g++ -fopenmp parallel_reduction.cpp -o parallel_reduction
 
-g++ -fopenmp parallel_reduction.cpp -o reduction
-
+Run:
+./parallel_reduction
 ==================================================
-                RUN COMMAND
-==================================================
-
-./reduction.exe
-
-==================================================
-                SAMPLE OUTPUT
-==================================================
-
-Array Elements:
-1 2 3 4 5
-
-Sum = 15
-Minimum = 1
-Maximum = 5
-Average = 3
-
-==================================================
-
 */

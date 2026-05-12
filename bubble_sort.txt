@@ -1,0 +1,93 @@
+#include <iostream>
+#include <vector>
+#include <omp.h>
+
+using namespace std;
+
+// Sequential Bubble Sort
+void sequential_bubble_sort(vector<int>& a, int n) {
+    for (int i = 0; i < n - 1; i++) {
+        for (int j = 0; j < n - i - 1; j++) {
+            if (a[j] > a[j + 1]) {
+                swap(a[j], a[j + 1]);
+            }
+        }
+    }
+}
+
+// Optimized Parallel Bubble Sort (Odd-Even Transposition Sort)
+void parallel_bubble_sort(vector<int>& b, int n) {
+    // Parallel region started once to avoid overhead
+    #pragma omp parallel
+    {
+        for (int i = 0; i < n; i++) {
+            // Even phase
+            if (i % 2 == 0) {
+                #pragma omp for
+                for (int j = 0; j < n - 1; j += 2) {
+                    if (b[j] > b[j + 1]) {
+                        swap(b[j], b[j + 1]);
+                    }
+                }
+            }
+            // Odd phase
+            else {
+                #pragma omp for
+                for (int j = 1; j < n - 1; j += 2) {
+                    if (b[j] > b[j + 1]) {
+                        swap(b[j], b[j + 1]);
+                    }
+                }
+            }
+            // Implicit barrier at the end of 'omp for' ensures phases don't overlap
+        }
+    }
+}
+
+int main() {
+    int n;
+    cout << "--- Parallel Bubble Sort ---\n";
+    cout << "Enter number of elements: ";
+    cin >> n;
+
+    vector<int> a(n);
+    vector<int> b(n);
+
+    cout << "Enter " << n << " elements:\n";
+    for (int i = 0; i < n; i++) {
+        cin >> a[i];
+        b[i] = a[i]; // Copy for parallel sort
+    }
+
+    // Sequential Sorting
+    double start = omp_get_wtime();
+    sequential_bubble_sort(a, n);
+    double end = omp_get_wtime();
+    cout << "\nSequential Bubble Sort Time: " << end - start << " seconds" << endl;
+
+    // Parallel Sorting
+    start = omp_get_wtime();
+    parallel_bubble_sort(b, n);
+    end = omp_get_wtime();
+    cout << "Parallel Bubble Sort Time: " << end - start << " seconds" << endl;
+
+    cout << "\nSorted Array: ";
+    for (int i = 0; i < n; i++) {
+        cout << b[i] << " ";
+    }
+    cout << endl;
+
+    return 0;
+}
+
+/*
+==================================================
+            COMPILATION & RUN
+==================================================
+Compilation:
+g++ -fopenmp bubble_sort.cpp -o bubble_sort
+
+Run:
+./bubble_sort
+==================================================
+*/
