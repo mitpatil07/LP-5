@@ -1,0 +1,136 @@
+#addition
+
+import numpy as np
+import time
+
+# Try importing CUDA
+try:
+    from numba import cuda
+    gpu_available = cuda.is_available()
+except Exception:
+    gpu_available = False
+
+
+# --------------------------------
+# CUDA Kernel: Vector Addition
+# --------------------------------
+if gpu_available:
+    @cuda.jit
+    def add_vectors(A, B, C, n):
+
+        # Global thread index
+        i = cuda.blockIdx.x * cuda.blockDim.x + cuda.threadIdx.x
+
+        # Boundary check
+        if i < n:
+            C[i] = A[i] + B[i]
+
+
+# --------------------------------
+# CPU Version
+# --------------------------------
+def cpu_add(A, B):
+    return A + B
+
+
+# --------------------------------
+# Main Function
+# --------------------------------
+def main():
+
+    # Dynamic input size
+    n = int(input("Enter size of vectors: "))
+
+    # Dynamic vector input
+    print(f"\nEnter {n} elements for Vector A:")
+    A = np.array(list(map(int, input().split())), dtype=np.int32)
+
+    print(f"\nEnter {n} elements for Vector B:")
+    B = np.array(list(map(int, input().split())), dtype=np.int32)
+
+    # Check input size
+    if len(A) != n or len(B) != n:
+        print("\nError: Number of elements does not match vector size.")
+        return
+
+    # ----------------------------
+    # GPU Execution
+    # ----------------------------
+    if gpu_available:
+
+        print("\nUsing GPU (CUDA)")
+
+        # Output vector
+        C = np.zeros(n, dtype=np.int32)
+
+        # Copy data to GPU
+        d_A = cuda.to_device(A)
+        d_B = cuda.to_device(B)
+        d_C = cuda.to_device(C)
+
+        # CUDA configuration
+        threads_per_block = 256
+        blocks_per_grid = (n + threads_per_block - 1) // threads_per_block
+
+        print(f"Threads per block: {threads_per_block}")
+        print(f"Blocks per grid: {blocks_per_grid}")
+
+        # Start timer
+        start = time.time()
+
+        # Launch kernel
+        add_vectors[blocks_per_grid, threads_per_block](d_A, d_B, d_C, n)
+
+        # Wait for GPU
+        cuda.synchronize()
+
+        # Copy result back
+        C = d_C.copy_to_host()
+
+        # End timer
+        end = time.time()
+
+        print(f"GPU Execution Time: {end - start:.6f} seconds")
+
+    # ----------------------------
+    # CPU Execution
+    # ----------------------------
+    else:
+
+        print("\nCUDA not available -> Using CPU")
+
+        start = time.time()
+
+        C = cpu_add(A, B)
+
+        end = time.time()
+
+        print(f"CPU Execution Time: {end - start:.6f} seconds")
+
+    # ----------------------------
+    # Display Results
+    # ----------------------------
+    print("\nVector A:")
+    print(A)
+
+    print("\nVector B:")
+    print(B)
+
+    print("\nResult Vector C:")
+    print(C)
+
+    # Verification
+    expected = A + B
+
+    if np.array_equal(C, expected):
+        print("\nResult is correct.")
+    else:
+        print("\nResult is incorrect.")
+
+
+# --------------------------------
+# Run Program
+# --------------------------------
+if __name__ == "__main__":
+    main()     
+    

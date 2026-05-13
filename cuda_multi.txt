@@ -1,0 +1,145 @@
+import numpy as np
+import time
+
+# Try importing CUDA
+try:
+    from numba import cuda
+    gpu_available = cuda.is_available()
+except Exception:
+    gpu_available = False
+
+
+# --------------------------------
+# CUDA Kernel: Matrix Multiplication
+# --------------------------------
+if gpu_available:
+
+    @cuda.jit
+    def matmul(A, B, C, N):
+
+        # Row and Column index
+        row = cuda.blockIdx.y * cuda.blockDim.y + cuda.threadIdx.y
+        col = cuda.blockIdx.x * cuda.blockDim.x + cuda.threadIdx.x
+
+        # Boundary check
+        if row < N and col < N:
+
+            temp = 0
+
+            for k in range(N):
+                temp += A[row, k] * B[k, col]
+
+            C[row, col] = temp
+
+
+# --------------------------------
+# CPU Version
+# --------------------------------
+def cpu_matmul(A, B):
+    return np.dot(A, B)
+
+
+# --------------------------------
+# Main Function
+# --------------------------------
+def main():
+
+    # Dynamic matrix size
+    N = int(input("Enter size of square matrix (N x N): "))
+
+    print(f"\nEnter elements of Matrix A ({N}x{N}):")
+
+    A = []
+
+    for i in range(N):
+        row = list(map(int, input().split()))
+        A.append(row)
+
+    A = np.array(A, dtype=np.int32)
+
+    print(f"\nEnter elements of Matrix B ({N}x{N}):")
+
+    B = []
+
+    for i in range(N):
+        row = list(map(int, input().split()))
+        B.append(row)
+
+    B = np.array(B, dtype=np.int32)
+
+    # ----------------------------
+    # GPU Execution
+    # ----------------------------
+    if gpu_available:
+
+        print("\nUsing GPU (CUDA)")
+
+        # Output matrix
+        C = np.zeros((N, N), dtype=np.int32)
+
+        # Copy matrices to GPU
+        d_A = cuda.to_device(A)
+        d_B = cuda.to_device(B)
+        d_C = cuda.to_device(C)
+
+        # Thread configuration
+        threads_per_block = (16, 16)
+
+        blocks_per_grid_x = (N + threads_per_block[0] - 1) // threads_per_block[0]
+        blocks_per_grid_y = (N + threads_per_block[1] - 1) // threads_per_block[1]
+
+        blocks_per_grid = (blocks_per_grid_x, blocks_per_grid_y)
+
+        print(f"Threads per block: {threads_per_block}")
+        print(f"Blocks per grid: {blocks_per_grid}")
+
+        # Start timer
+        start = time.time()
+
+        # Launch kernel
+        matmul[blocks_per_grid, threads_per_block](d_A, d_B, d_C, N)
+
+        # Wait for GPU
+        cuda.synchronize()
+
+        # Copy result back
+        C = d_C.copy_to_host()
+
+        # End timer
+        end = time.time()
+
+        print(f"\nGPU Execution Time: {end - start:.6f} seconds")
+
+    # ----------------------------
+    # CPU Execution
+    # ----------------------------
+    else:
+
+        print("\nCUDA not available -> Using CPU")
+
+        start = time.time()
+
+        C = cpu_matmul(A, B)
+
+        end = time.time()
+
+        print(f"\nCPU Execution Time: {end - start:.6f} seconds")
+
+    # ----------------------------
+    # Display Results
+    # ----------------------------
+    print("\nMatrix A:")
+    print(A)
+
+    print("\nMatrix B:")
+    print(B)
+
+    print("\nResult Matrix C:")
+    print(C)
+
+
+# --------------------------------
+# Run Program
+# --------------------------------
+if __name__ == "__main__":
+    main()
